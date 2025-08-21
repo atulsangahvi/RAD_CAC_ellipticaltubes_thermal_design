@@ -60,7 +60,7 @@ def coolant_properties(fluid: str, T_C: float) -> Dict[str, float]:
 
 
 def charge_air_properties(T_C: float, P_Pa: float) -> Dict[str, float]:
-    """Dry (charge) air properties at (T, P). Falls back to typical values if CoolProp unavailable."""
+    """Dry (charge) air properties at (T, P). Falls back if CoolProp unavailable."""
     T_K = T_C + 273.15
     if PropsSI is not None:
         try:
@@ -73,7 +73,8 @@ def charge_air_properties(T_C: float, P_Pa: float) -> Dict[str, float]:
     else:
         rho, cp, k, mu = 1.2, 1007.0, 0.026, 1.95e-5
     Pr = cp*mu/max(k,1e-12)
-    return {"rho":rho,"cp":cp,"k":k,"mu":mu,"Pr":Pr}
+    return {"rho":rho, "cp":cp, "k":k, "mu":mu, "Pr":Pr}
+
 def gnielinski_h_i(Re: float, Pr: float, k: float, D_h: float) -> float:
     if Re < 2300:
         Nu = 3.66
@@ -303,8 +304,8 @@ with a2:
             K_tube_in   = st.number_input("K_tube_in (header→tube)", 0.0, 10.0, 1.0, 0.1)
             K_tube_out  = st.number_input("K_tube_out (tube→header)", 0.0, 10.0, 1.0, 0.1)
             K_headers   = st.number_input("K_headers (manifold turns)", 0.0, 10.0, 1.0, 0.1)
-with a3:
 
+with a3:
     st.subheader("Fouling & fin efficiency")
     R_f_air  = st.number_input("Air-side fouling R_f,air (m²·K/W)", 0.0, 0.01, 0.0001, 0.0001, format="%.5f")
     R_f_cool = st.number_input("Coolant-side fouling R_f,cool (m²·K/W)", 0.0, 0.01, 0.0001, 0.0001, format="%.5f")
@@ -366,34 +367,35 @@ if st.button("Compute Radiator Performance", type="primary"):
         Vdot_air_m3s = v_face*A_frontal
         Vdot_air_m3h = Vdot_air_m3s*3600.0
 
-    air_in = air_properties(T_air_in_C, RH_air, P_atm_Pa)
-    rho_air_in, cp_air_in, k_air_in, mu_air_in, Pr_air_in = air_in["rho"], air_in["cp"], air_in["k"], air_in["mu"], air_in["Pr"]
-    m_dot_air = rho_air_in*Vdot_air_m3s
-    # ---- Tube-side (glycol or charge air) ----
-    if 'tube_fluid' not in globals():
-        tube_fluid = "Glycol"  # backward compatibility for older sessions
+air_in = air_properties(T_air_in_C, RH_air, P_atm_Pa)
+rho_air_in, cp_air_in, k_air_in, mu_air_in, Pr_air_in = air_in["rho"], air_in["cp"], air_in["k"], air_in["mu"], air_in["Pr"]
+m_dot_air = rho_air_in*Vdot_air_m3s
 
-    if tube_fluid == "Glycol":
-        mass_frac = glycol_pct/100.0
-        base = "INCOMP::MEG" if glycol_type.startswith("Ethylene") else "INCOMP::MPG"
-        fluid = f"{base}[{mass_frac:.3f}]"
-        cool_in = coolant_properties(fluid, T_cool_in_C)
-        Vdot_cool_m3s = coolant_Vdot_Lps/1000.0
-        m_dot_cool = cool_in["rho"]*Vdot_cool_m3s
-        P_tube_in_Pa = 101325.0
-        T_tube_in_C = T_cool_in_C
+# ---- Tube-side (glycol or charge air) ----
+if 'tube_fluid' not in locals():
+    tube_fluid = "Glycol"
+
+if tube_fluid == "Glycol":
+    T_tube_in_C = T_cool_in_C
+    mass_frac = glycol_pct/100.0
+    base = "INCOMP::MEG" if glycol_type.startswith("Ethylene") else "INCOMP::MPG"
+    fluid = f"{base}[{mass_frac:.3f}]"
+    cool_in = coolant_properties(fluid, T_tube_in_C)
+    Vdot_cool_m3s = coolant_Vdot_Lps/1000.0
+    m_dot_cool = cool_in["rho"]*Vdot_cool_m3s
+    P_tube_in_Pa = 101325.0
+else:
+    P_tube_in_Pa = (P_tube_in_bar*1e5)
+    cool_in = charge_air_properties(T_tube_in_C, P_tube_in_Pa)
+    if use_mass_flow and m_dot_tube_total_input is not None:
+        m_dot_cool = m_dot_tube_total_input
     else:
-        P_tube_in_Pa = (P_tube_in_bar*1e5)
-        cool_in = charge_air_properties(T_tube_in_C, P_tube_in_Pa)
-        if use_mass_flow and (m_dot_tube_total_input is not None):
-            m_dot_cool = m_dot_tube_total_input
-        else:
-            rho_inlet = charge_air_properties(T_tube_in_C, P_tube_in_Pa)["rho"]
-            m_dot_cool = rho_inlet * max(Vdot_inlet_m3s_input or 0.0, 0.0)
+        rho_inlet = charge_air_properties(T_tube_in_C, P_tube_in_Pa)["rho"]
+        m_dot_cool = rho_inlet * max(Vdot_inlet_m3s_input or 0.0, 0.0)
 
-    m_dot_per_tube = m_dot_cool/max(total_tubes,1)
-    v_i   = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
-    D_h_i = 4.0*A_i_section/P_i
+m_dot_per_tube = m_dot_cool/max(total_tubes,1)
+D_h_i = 4.0*A_i_section/P_i
+v_i_in = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
 
     # FAR perpendicular to airflow
     phi_fins = max(0.05, 1.0 - (fin_thk/max(fin_pitch_m,1e-9)))
@@ -435,7 +437,7 @@ if st.button("Compute Radiator Performance", type="primary"):
     else:
         h_o_in = h_o_in_zuk
 
-    Re_i_in = cool_in["rho"]*v_i*D_h_i/max(cool_in["mu"],1e-12)
+    Re_i_in = cool_in["rho"]*v_i_in*D_h_i/max(cool_in["mu"],1e-12)
     h_i_in  = gnielinski_h_i(Re_i_in, cool_in["Pr"], cool_in["k"], D_h_i)
 
     # Fin efficiency at inlet
@@ -505,10 +507,15 @@ if st.button("Compute Radiator Performance", type="primary"):
                 eta_f_r = eta_fin_slider
             Ao_row_eff = A_tube_row + eta_f_r*A_fin_row
 
-            cprops = coolant_properties(fluid, 0.5*(T_cool_in_row+T_cool_out_r))
-            Re_i_r = cprops["rho"]*v_i*D_h_i/max(cprops["mu"],1e-12)
-            h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
+if tube_fluid == "Glycol":
+    cprops = coolant_properties(fluid, 0.5*(T_cool_in_row+T_cool_out_r))
+    v_i_row = v_i_in
+else:
+    cprops = charge_air_properties(0.5*(T_cool_in_row+T_cool_out_r), P_tube_in_Pa)
+    v_i_row = m_dot_per_tube/(max(cprops["rho"],1e-12)*A_i_section)
 
+Re_i_r = cprops["rho"]*v_i_row*D_h_i/max(cprops["mu"],1e-12)
+h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
             R_air_r = 1.0/max(h_o_r,1e-9)
             R_cool_eq_r = (Ao_row_eff/Ai_row) * (1.0/max(h_i_r,1e-9))
             R_f_cool_eq_r = (Ao_row_eff/Ai_row) * R_f_cool
@@ -581,9 +588,9 @@ if st.button("Compute Radiator Performance", type="primary"):
         dP_fric = f_air * (L_air/max(Dh_air,1e-9)) * q_dyn * ((Veff/max(v_core,1e-9))**2)
         dP_air_Pa = dP_fric + (K_in + K_out) * q_dyn
 
-    f_i = friction_factor_tube(cool_in["rho"]*v_i*D_h_i/max(cool_in["mu"],1e-12), rel_rough)
+    f_i = friction_factor_tube(cool_in["rho"]*v_i_in*D_h_i/max(cool_in["mu"],1e-12), rel_rough)
     L_tube = core_h
-    q_dyn_i = 0.5*cool_in["rho"]*(v_i**2)
+    q_dyn_i = 0.5*cool_in["rho"]*(v_i_in**2)
     dP_tube_Pa    = (f_i * (L_tube/max(D_h_i,1e-9)) + K_tube_in + K_tube_out) * q_dyn_i
     dP_headers_Pa = K_headers * q_dyn_i
     dP_coolant_Pa = dP_tube_Pa + dP_headers_Pa
@@ -606,13 +613,13 @@ if st.button("Compute Radiator Performance", type="primary"):
     st.caption(f"Re_fin (inlet)={Re_fin_in:0.0f}")
 
     # Coolant hydraulics block
-    st.subheader("Coolant tube hydraulics")
+    st.subheader("Tube-side hydraulics")
 
     cch1,cch2,cch3,cch4 = st.columns(4)
     cch1.metric("Tube internal area Aᵢ (mm²)", f"{A_i_section*1e6:0.2f}")
     cch2.metric("Hydraulic diameter Dₕᵢ (mm)", f"{D_h_i*1e3:0.3f}")
-    cch3.metric("Coolant velocity vᵢ (m/s)", f"{v_i:0.3f}")
-    cch4.metric("Re_coolant inlet (-)", f"{Re_i_in:0.0f}")
+    cch3.metric("Tube-side inlet velocity vᵢ (m/s)", f"{v_i_in:0.3f}")
+    cch4.metric("Re_tube-side inlet (-)", f"{Re_i_in:0.0f}")
 
     st.subheader("Geometry & Areas")
     g1,g2,g3,g4 = st.columns(4)
@@ -663,7 +670,7 @@ if st.button("Compute Radiator Performance", type="primary"):
     st.subheader("Pressure drops")
     dp1,dp2,dp3 = st.columns(3)
     dp1.metric("Air-side ΔP (Pa)", f"{dP_air_Pa:0.0f}")
-    dp2.metric("Coolant ΔP per path (kPa)", f"{dP_coolant_Pa/1000.0:0.2f}")
+    dp2.metric("Tube-side ΔP per path (kPa)", f"{dP_coolant_Pa/1000.0:0.2f}")
     dp3.metric("Dynamic pressure q@Veff (Pa)", f"{q_dyn:0.0f}")
 
     if row_model:
@@ -720,7 +727,7 @@ if st.button("Compute Radiator Performance", type="primary"):
         "T_cool_out_C": T_cool_out, "T_air_out_C": T_air_out, "Method": method_used,
         "dP_air_Pa": dP_air_Pa, "dP_coolant_Pa": dP_coolant_Pa, "q_dyn_air_Pa": q_dyn,
         "velocity_basis": velocity_basis, "air_htc_model": air_htc_model, "enhancement_used": enh_factor,
-        "v_coolant_tube_ms": v_i, "A_i_section_m2": A_i_section, "D_h_i_m": D_h_i, "Re_coolant_inlet": Re_i_in
+        "v_coolant_tube_ms": v_i_in, "A_i_section_m2": A_i_section, "D_h_i_m": D_h_i, "Re_coolant_inlet": Re_i_in
     }
 
     # CSV buttons
