@@ -234,7 +234,7 @@ with a1:
         elif fin_style=="Corrugated fin":
             Cj_default, mj_default, aj_default, bj_default, cj_default = 0.34, 0.45, -0.20, 0.00, 0.00
             Cf_default, mf_default = 1.15, 0.25
-        else:
+    else:
             Cj_default, mj_default, aj_default, bj_default, cj_default = 0.27, 0.50, -0.20, 0.00, 0.00
             Cf_default, mf_default = 1.00, 0.23
         Cj = st.number_input("Cj (j prefactor)", 0.01, 3.0, float(Cj_default), 0.01)
@@ -258,7 +258,7 @@ with a1:
             K_row = st.number_input("K per row", 0.0, 10.0, 2.0, 0.1)
             K_out = st.number_input("K_out (exit)", 0.0, 10.0, 1.0, 0.1)
             K_misc= st.number_input("K_misc (guards/shroud)", 0.0, 10.0, 0.5, 0.1)
-        else:
+    else:
             K_in  = st.number_input("K_in (entrance)", 0.0, 10.0, 1.0, 0.1)
             K_out = st.number_input("K_out (exit)", 0.0, 10.0, 1.0, 0.1)
             f_mult= st.number_input("Friction multiplier (fin effects)", 0.5, 3.0, 1.0, 0.05)
@@ -294,7 +294,7 @@ with a2:
         if use_mass_flow:
             m_dot_tube_total_input = st.number_input("Charge air mass flow (kg/s)", 0.0, 20.0, 0.5, 0.01)
             Vdot_inlet_m3s_input = None
-        else:
+    else:
             Vdot_inlet_m3s_input = st.number_input("Charge air volumetric flow at inlet (m³/s)", 0.0, 10.0, 0.3, 0.01)
             m_dot_tube_total_input = None
         dP_allow_kPa = st.number_input("Allowable tube-side ΔP (kPa)", 0.0, 100.0, 20.0, 1.0)
@@ -365,36 +365,36 @@ if st.button("Compute Radiator Performance", type="primary"):
         Vdot_air_m3s = v_face*A_frontal
         Vdot_air_m3h = Vdot_air_m3s*3600.0
 
-air_in = air_properties(T_air_in_C, RH_air, P_atm_Pa)
-rho_air_in, cp_air_in, k_air_in, mu_air_in, Pr_air_in = air_in["rho"], air_in["cp"], air_in["k"], air_in["mu"], air_in["Pr"]
-m_dot_air = rho_air_in*Vdot_air_m3s
+    air_in = air_properties(T_air_in_C, RH_air, P_atm_Pa)
+    rho_air_in, cp_air_in, k_air_in, mu_air_in, Pr_air_in = air_in["rho"], air_in["cp"], air_in["k"], air_in["mu"], air_in["Pr"]
+    m_dot_air = rho_air_in*Vdot_air_m3s
 
-# Tube-side (inside tubes): Glycol or Charge air
-if 'tube_fluid' not in locals():
-    tube_fluid = "Glycol"  # backward compatibility
+    # Tube-side (inside tubes): Glycol or Charge air
+    if 'tube_fluid' not in locals():
+        tube_fluid = "Glycol"  # backward compatibility
 
-if tube_fluid == "Glycol":
-    T_tube_in_C = T_cool_in_C
-    mass_frac = glycol_pct/100.0
-    base = "INCOMP::MEG" if glycol_type.startswith("Ethylene") else "INCOMP::MPG"
-    fluid = f"{base}[{mass_frac:.3f}]"
-    cool_in = coolant_properties(fluid, T_tube_in_C)
-    Vdot_cool_m3s = coolant_Vdot_Lps/1000.0
-    m_dot_cool = cool_in["rho"]*Vdot_cool_m3s
-    P_tube_in_Pa = 101325.0
-else:
-    P_tube_in_Pa = P_tube_in_bar*1e5
-    cool_in = charge_air_properties(T_tube_in_C, P_tube_in_Pa)
-    if use_mass_flow and (m_dot_tube_total_input is not None):
-        m_dot_cool = m_dot_tube_total_input
+    if tube_fluid == "Glycol":
+        T_tube_in_C = T_cool_in_C
+        mass_frac = glycol_pct/100.0
+        base = "INCOMP::MEG" if glycol_type.startswith("Ethylene") else "INCOMP::MPG"
+        fluid = f"{base}[{mass_frac:.3f}]"
+        cool_in = coolant_properties(fluid, T_tube_in_C)
+        Vdot_cool_m3s = coolant_Vdot_Lps/1000.0
+        m_dot_cool = cool_in["rho"]*Vdot_cool_m3s
+        P_tube_in_Pa = 101325.0
     else:
-        rho_inlet = charge_air_properties(T_tube_in_C, P_tube_in_Pa)["rho"]
-        V_inlet = max(Vdot_inlet_m3s_input or 0.0, 0.0)
-        m_dot_cool = rho_inlet * V_inlet
+        P_tube_in_Pa = P_tube_in_bar*1e5
+        cool_in = charge_air_properties(T_tube_in_C, P_tube_in_Pa)
+        if use_mass_flow and (m_dot_tube_total_input is not None):
+            m_dot_cool = m_dot_tube_total_input
+    else:
+            rho_inlet = charge_air_properties(T_tube_in_C, P_tube_in_Pa)["rho"]
+            V_inlet = max(Vdot_inlet_m3s_input or 0.0, 0.0)
+            m_dot_cool = rho_inlet * V_inlet
 
-m_dot_per_tube = m_dot_cool/max(total_tubes,1)
-v_i_in   = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
-D_h_i = 4.0*A_i_section/P_i
+    m_dot_per_tube = m_dot_cool/max(total_tubes,1)
+    v_i_in   = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
+    D_h_i = 4.0*A_i_section/P_i
 
     # FAR perpendicular to airflow
     phi_fins = max(0.05, 1.0 - (fin_thk/max(fin_pitch_m,1e-9)))
@@ -421,414 +421,414 @@ D_h_i = 4.0*A_i_section/P_i
         vamp = min(vamp_raw, vmax_cap)
         Veff = v_core * vamp
 
-    # Inlet Re / h values
-    Re_external_in = rho_air_in*Veff*od_d/max(mu_air_in,1e-12)
-    C2_rows = row_correction_C2(int(n_rows), arrangement=="Staggered")
-    h_o_in_zuk = zukauskas_h_o(max(Re_external_in,1.0), Pr_air_in, k_air_in, od_d, heating=True) * C2_rows * enh_factor * arr_htc_factor
+        # Inlet Re / h values
+        Re_external_in = rho_air_in*Veff*od_d/max(mu_air_in,1e-12)
+        C2_rows = row_correction_C2(int(n_rows), arrangement=="Staggered")
+        h_o_in_zuk = zukauskas_h_o(max(Re_external_in,1.0), Pr_air_in, k_air_in, od_d, heating=True) * C2_rows * enh_factor * arr_htc_factor
 
-    Re_fin_in = rho_air_in*Veff*Dh_air/max(mu_air_in,1e-12)
-    is_louv = (fin_louvered=="Louvered")
-    l_pitch_m = louver_pitch_mm/1000.0
-    j_in = j_colburn(Re_fin_in, Pr_air_in, Dh_air, fin_pitch_m, is_louv, l_pitch_m, louver_angle_deg, Cj, mj, aj, bj, cj)
-    h_o_in_j = j_in * rho_air_in * Veff * cp_air_in /(max(Pr_air_in,1e-12)**(2.0/3.0))
-    if air_htc_model.startswith("Fin-correlation"):
-        h_o_in = h_o_in_j * (arr_htc_factor if apply_arr_to_j else 1.0)
+        Re_fin_in = rho_air_in*Veff*Dh_air/max(mu_air_in,1e-12)
+        is_louv = (fin_louvered=="Louvered")
+        l_pitch_m = louver_pitch_mm/1000.0
+        j_in = j_colburn(Re_fin_in, Pr_air_in, Dh_air, fin_pitch_m, is_louv, l_pitch_m, louver_angle_deg, Cj, mj, aj, bj, cj)
+        h_o_in_j = j_in * rho_air_in * Veff * cp_air_in /(max(Pr_air_in,1e-12)**(2.0/3.0))
+        if air_htc_model.startswith("Fin-correlation"):
+            h_o_in = h_o_in_j * (arr_htc_factor if apply_arr_to_j else 1.0)
     else:
-        h_o_in = h_o_in_zuk
+            h_o_in = h_o_in_zuk
 
-    Re_i_in = cool_in["rho"]*v_i_in*D_h_i/max(cool_in["mu"],1e-12)
-    h_i_in = gnielinski_h_i(Re_i_in, cool_in["Pr"], cool_in["k"], D_h_i)
+        Re_i_in = cool_in["rho"]*v_i_in*D_h_i/max(cool_in["mu"],1e-12)
+        h_i_in = gnielinski_h_i(Re_i_in, cool_in["Pr"], cool_in["k"], D_h_i)
 
-    # Fin efficiency at inlet
-    L_fin = max(1e-6, 0.5*fin_gap_m)
-    if use_auto_eta:
-        m_param = math.sqrt(max(1e-12, 2.0*h_o_in/(k_fin*max(fin_thk,1e-9))))
-        mL = m_param*L_fin
-        eta_fin_in = max(0.5, min(0.99, math.tanh(mL)/max(mL,1e-9)))
+        # Fin efficiency at inlet
+        L_fin = max(1e-6, 0.5*fin_gap_m)
+        if use_auto_eta:
+            m_param = math.sqrt(max(1e-12, 2.0*h_o_in/(k_fin*max(fin_thk,1e-9))))
+            mL = m_param*L_fin
+            eta_fin_in = max(0.5, min(0.99, math.tanh(mL)/max(mL,1e-9)))
     else:
-        eta_fin_in = eta_fin_slider
+            eta_fin_in = eta_fin_slider
 
-    Ao_eff_total = A_tube_ext_total + eta_fin_in*A_fin_total
-    Ai_total = P_i*core_h*total_tubes
-    Amean_total = 0.5*(P_o+P_i)*core_h*total_tubes
-    R_wall_total = (t_thk/k_tube) * (Amean_total/Ao_eff_total)
+        Ao_eff_total = A_tube_ext_total + eta_fin_in*A_fin_total
+        Ai_total = P_i*core_h*total_tubes
+        Amean_total = 0.5*(P_o+P_i)*core_h*total_tubes
+        R_wall_total = (t_thk/k_tube) * (Amean_total/Ao_eff_total)
 
-    R_air = 1.0/max(h_o_in,1e-9)
-    R_cool_eq = (Ao_eff_total/Ai_total) * (1.0/max(h_i_in,1e-9))
-    R_f_cool_eq = (Ao_eff_total/Ai_total) * R_f_cool
-    R_total_bulk = R_air + R_f_air + R_cool_eq + R_f_cool_eq + (R_wall_total/Ao_eff_total)
-    Uo_bulk = 1.0/R_total_bulk
-    UA_bulk = Uo_bulk * Ao_eff_total
+        R_air = 1.0/max(h_o_in,1e-9)
+        R_cool_eq = (Ao_eff_total/Ai_total) * (1.0/max(h_i_in,1e-9))
+        R_f_cool_eq = (Ao_eff_total/Ai_total) * R_f_cool
+        R_total_bulk = R_air + R_f_air + R_cool_eq + R_f_cool_eq + (R_wall_total/Ao_eff_total)
+        Uo_bulk = 1.0/R_total_bulk
+        UA_bulk = Uo_bulk * Ao_eff_total
 
-    C_air_bulk  = m_dot_air*cp_air_in
-    C_cool_bulk = m_dot_cool*cool_in["cp"]
-    C_min_bulk, C_max_bulk = min(C_air_bulk,C_cool_bulk), max(C_air_bulk,C_cool_bulk)
-    Cr_bulk = C_min_bulk/max(C_max_bulk,1e-9)
-    NTU_bulk = UA_bulk/max(C_min_bulk,1e-9)
-    eps_bulk = crossflow_effectiveness_mixed_unmixed(NTU_bulk, Cr_bulk)
-    Q_bulk_W = eps_bulk*C_min_bulk*max(0.0, T_cool_in_C - T_air_in_C)
-    T_air_out_bulk  = T_air_in_C  + Q_bulk_W/C_air_bulk
-    T_cool_out_bulk = T_cool_in_C - Q_bulk_W/C_cool_bulk
+        C_air_bulk  = m_dot_air*cp_air_in
+        C_cool_bulk = m_dot_cool*cool_in["cp"]
+        C_min_bulk, C_max_bulk = min(C_air_bulk,C_cool_bulk), max(C_air_bulk,C_cool_bulk)
+        Cr_bulk = C_min_bulk/max(C_max_bulk,1e-9)
+        NTU_bulk = UA_bulk/max(C_min_bulk,1e-9)
+        eps_bulk = crossflow_effectiveness_mixed_unmixed(NTU_bulk, Cr_bulk)
+        Q_bulk_W = eps_bulk*C_min_bulk*max(0.0, T_cool_in_C - T_air_in_C)
+        T_air_out_bulk  = T_air_in_C  + Q_bulk_W/C_air_bulk
+        T_cool_out_bulk = T_cool_in_C - Q_bulk_W/C_cool_bulk
 
-    # -------- Row-by-row (coolant parallel across rows) --------
-    row_records: List[Dict] = []
-    Q_rows: List[float] = []
-    Re_external_rows: List[float] = []
-    cp_rows: List[float] = []
+        # -------- Row-by-row (coolant parallel across rows) --------
+        row_records: List[Dict] = []
+        Q_rows: List[float] = []
+        Re_external_rows: List[float] = []
+        cp_rows: List[float] = []
 
-    T_air_in_r = T_air_in_C
-    Ai_row  = Ai_total/max(n_rows,1)
-    A_tube_row = A_tube_ext_total/max(n_rows,1)
-    A_fin_row  = A_fin_total/max(n_rows,1)
-    R_wall_row_total = (t_thk/k_tube) * (0.5*(P_o+P_i)*core_h*total_tubes/max(n_rows,1))
+        T_air_in_r = T_air_in_C
+        Ai_row  = Ai_total/max(n_rows,1)
+        A_tube_row = A_tube_ext_total/max(n_rows,1)
+        A_fin_row  = A_fin_total/max(n_rows,1)
+        R_wall_row_total = (t_thk/k_tube) * (0.5*(P_o+P_i)*core_h*total_tubes/max(n_rows,1))
 
-    for r in range(int(n_rows)):
-        T_air_out_r = T_air_in_r + 1.0
-        T_cool_in_row = (T_tube_in_C if tube_fluid=='Charge air' else T_cool_in_C)  # same inlet to each row (parallel split)
-        T_cool_out_r = T_cool_in_row - 1.0
-        for it in range(int(iters_per_row if var_props else 1)):
-            aprops = air_properties(0.5*(T_air_in_r + T_air_out_r), RH_air, P_atm_Pa)
-            rho_a, cp_a, k_a, mu_a, Pr_a = aprops["rho"], aprops["cp"], aprops["k"], aprops["mu"], aprops["Pr"]
-            Re_o_r = rho_a*Veff*od_d/max(mu_a,1e-12)
-            h_o_r_zuk = zukauskas_h_o(max(Re_o_r,1.0), Pr_a, k_a, od_d, heating=True) * C2_rows * enh_factor * arr_htc_factor
-            Re_fin_r = rho_a*Veff*Dh_air/max(mu_a,1e-12)
-            j_row = j_colburn(Re_fin_r, Pr_a, Dh_air, fin_pitch_m, is_louv, l_pitch_m, louver_angle_deg, Cj, mj, aj, bj, cj)
-            h_o_r_j = j_row * rho_a * Veff * cp_a /(max(Pr_a,1e-12)**(2.0/3.0))
-            if air_htc_model.startswith("Fin-correlation"):
-                h_o_r = h_o_r_j * (arr_htc_factor if apply_arr_to_j else 1.0)
+        for r in range(int(n_rows)):
+            T_air_out_r = T_air_in_r + 1.0
+            T_cool_in_row = (T_tube_in_C if tube_fluid=='Charge air' else T_cool_in_C)  # same inlet to each row (parallel split)
+            T_cool_out_r = T_cool_in_row - 1.0
+            for it in range(int(iters_per_row if var_props else 1)):
+                aprops = air_properties(0.5*(T_air_in_r + T_air_out_r), RH_air, P_atm_Pa)
+                rho_a, cp_a, k_a, mu_a, Pr_a = aprops["rho"], aprops["cp"], aprops["k"], aprops["mu"], aprops["Pr"]
+                Re_o_r = rho_a*Veff*od_d/max(mu_a,1e-12)
+                h_o_r_zuk = zukauskas_h_o(max(Re_o_r,1.0), Pr_a, k_a, od_d, heating=True) * C2_rows * enh_factor * arr_htc_factor
+                Re_fin_r = rho_a*Veff*Dh_air/max(mu_a,1e-12)
+                j_row = j_colburn(Re_fin_r, Pr_a, Dh_air, fin_pitch_m, is_louv, l_pitch_m, louver_angle_deg, Cj, mj, aj, bj, cj)
+                h_o_r_j = j_row * rho_a * Veff * cp_a /(max(Pr_a,1e-12)**(2.0/3.0))
+                if air_htc_model.startswith("Fin-correlation"):
+                    h_o_r = h_o_r_j * (arr_htc_factor if apply_arr_to_j else 1.0)
+                else:
+                    h_o_r = h_o_r_zuk
+
+                if use_auto_eta:
+                    m_param = math.sqrt(max(1e-12, 2.0*h_o_r/(k_fin*max(fin_thk,1e-9))))
+                    eta_f_r = max(0.5, min(0.99, math.tanh(m_param*(0.5*fin_gap_m))/max(m_param*(0.5*fin_gap_m),1e-9)))
+                else:
+                    eta_f_r = eta_fin_slider
+                Ao_row_eff = A_tube_row + eta_f_r*A_fin_row
+    if tube_fluid == "Glycol":
+        cprops = coolant_properties(fluid, 0.5*(T_cool_in_row+T_cool_out_r))
+        v_i_row = v_i_in
+    else:
+        cprops = charge_air_properties(0.5*(T_cool_in_row+T_cool_out_r), P_tube_in_Pa)
+        v_i_row = m_dot_per_tube/(max(cprops["rho"],1e-12)*A_i_section)
+
+    Re_i_r = cprops["rho"]*v_i_row*D_h_i/max(cprops["mu"],1e-12)
+    h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
+
+                R_air_r = 1.0/max(h_o_r,1e-9)
+                R_cool_eq_r = (Ao_row_eff/Ai_row) * (1.0/max(h_i_r,1e-9))
+                R_f_cool_eq_r = (Ao_row_eff/Ai_row) * R_f_cool
+                R_wall_eq_r = (R_wall_row_total) / Ao_row_eff
+                R_tot_r = R_air_r + R_f_air + R_cool_eq_r + R_f_cool_eq_r + R_wall_eq_r
+                Uo_r = 1.0/R_tot_r
+                UA_r = Uo_r * Ao_row_eff
+
+                C_air_r  = m_dot_air*cp_a
+                C_cool_r = (m_dot_cool*cprops["cp"])/n_rows
+                Cmin_r, Cmax_r = min(C_air_r,C_cool_r), max(C_air_r,C_cool_r)
+                Cr_r = Cmin_r/max(Cmax_r,1e-9)
+                NTU_r = UA_r/max(Cmin_r,1e-9)
+                eps_r = crossflow_effectiveness_mixed_unmixed(NTU_r, Cr_r)
+
+                dTmax_r = max(0.0, T_cool_in_row - T_air_in_r)
+                Q_r = eps_r*Cmin_r*dTmax_r
+                T_air_out_r = T_air_in_r + Q_r/C_air_r
+                T_cool_out_r= T_cool_in_row - Q_r/C_cool_r
+
+            row_records.append({
+                "row": r+1, "T_air_in_C": T_air_in_r, "T_air_out_C": T_air_out_r,
+                "T_cool_out_C": T_cool_out_r, "Q_row_kW": Q_r/1000.0,
+                "NTU_row": NTU_r, "eps_row": eps_r,
+                "h_o_row": h_o_r, "eta_f_row": eta_f_r, "Re_external_row": Re_o_r,
+                "Re_fin_row": Re_fin_r, "j_row": j_row
+            })
+            Re_external_rows.append(Re_o_r)
+            Q_rows.append(Q_r)
+            cp_rows.append(cprops["cp"])
+            T_air_in_r = T_air_out_r
+
+        if row_model:
+            Q_W = sum(Q_rows)
+            T_air_out = row_records[-1]["T_air_out_C"] if row_records else T_air_in_C
+            cp_avg = (sum(cp_rows)/len(cp_rows)) if cp_rows else cool_in["cp"]
+            T_cool_out = T_cool_in_C - Q_W / max(m_dot_cool*cp_avg,1e-12)
+            method_used = "row-by-row (variable props)" if var_props else "row-by-row"
+            Re_external_min = float(np.min(Re_external_rows)) if Re_external_rows else Re_external_in
+            Re_external_max = float(np.max(Re_external_rows)) if Re_external_rows else Re_external_in
+    else:
+            Q_W = Q_bulk_W
+            T_air_out = T_air_out_bulk
+            T_cool_out = T_cool_out_bulk
+            method_used = "bulk NTU"
+            Re_external_min = Re_external_in
+            Re_external_max = Re_external_in
+
+        Q_kW = Q_W/1000.0
+
+        # Energy report: use model Q for both sides to avoid confusion
+        Q_air_kW  = Q_W/1000.0
+        Q_cool_kW = Q_W/1000.0
+        Q_mismatch_kW = 0.0
+
+        # Pressure drops
+        Re_air_channel_in = rho_air_in * v_core * Dh_air / max(mu_air_in,1e-12)
+        q_dyn = 0.5 * rho_air_in * (Veff**2)
+        if dp_model == "K-based per-row":
+            K_total = (K_in + K_out + (K_row if "K_row" in locals() else 0.0)*n_rows + (K_misc if "K_misc" in locals() else 0.0)) * arr_dp_factor
+            dP_air_Pa = K_total * q_dyn
+    else:
+            if air_htc_model.startswith("Fin-correlation") and use_fin_friction:
+                f_base = f_fin_corr(Re_air_channel_in, Cf, mf)
             else:
-                h_o_r = h_o_r_zuk
+                f_base = friction_factor_channel(Re_air_channel_in)
+            mult = f_mult if "f_mult" in locals() else 1.0
+            f_air = f_base * mult * arr_dp_factor
+            L_air = core_d
+            dP_fric = f_air * (L_air/max(Dh_air,1e-9)) * q_dyn * ((Veff/max(v_core,1e-9))**2)
+            dP_air_Pa = dP_fric + (K_in + K_out) * q_dyn
 
-            if use_auto_eta:
-                m_param = math.sqrt(max(1e-12, 2.0*h_o_r/(k_fin*max(fin_thk,1e-9))))
-                eta_f_r = max(0.5, min(0.99, math.tanh(m_param*(0.5*fin_gap_m))/max(m_param*(0.5*fin_gap_m),1e-9)))
-            else:
-                eta_f_r = eta_fin_slider
-            Ao_row_eff = A_tube_row + eta_f_r*A_fin_row
-if tube_fluid == "Glycol":
-    cprops = coolant_properties(fluid, 0.5*(T_cool_in_row+T_cool_out_r))
-    v_i_row = v_i_in
-else:
-    cprops = charge_air_properties(0.5*(T_cool_in_row+T_cool_out_r), P_tube_in_Pa)
-    v_i_row = m_dot_per_tube/(max(cprops["rho"],1e-12)*A_i_section)
+        f_i = friction_factor_tube(cool_in["rho"]*v_i_in*D_h_i/max(cool_in["mu"],1e-12), rel_rough)
+        L_tube = core_h
+        q_dyn_i = 0.5*cool_in["rho"]*(v_i_in**2)
+        dP_tube_Pa    = (f_i * (L_tube/max(D_h_i,1e-9)) + K_tube_in + K_tube_out) * q_dyn_i
+        dP_headers_Pa = K_headers * q_dyn_i
+        dP_coolant_Pa = dP_tube_Pa + dP_headers_Pa
 
-Re_i_r = cprops["rho"]*v_i_row*D_h_i/max(cprops["mu"],1e-12)
-h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
+        # ------------ UI -------------
+        st.subheader("Velocities & FAR")
+        vcol1,vcol2,vcol3 = st.columns(3)
+        vcol1.metric("Face velocity v_face (m/s)", f"{v_face:0.2f}")
+        vcol2.metric("Fin-space velocity v_core (m/s)", f"{v_core:0.2f}")
+        vcol3.metric("Free-area ratio (FAR)", f"{FAR:0.3f}")
+        st.metric("Velocity used for Re/ΔP (m/s)", f"{Veff:.2f}")
+        st.metric("Amplification (Veff/Vref)", f"{vamp:.2f}")
+        st.caption(f"Air velocity model: {vmax_model} (cap={vmax_cap}) — ST/D={ST/max(D,1e-9):.2f}, SL/D={SL/max(D,1e-9):.2f}")
 
-            R_air_r = 1.0/max(h_o_r,1e-9)
-            R_cool_eq_r = (Ao_row_eff/Ai_row) * (1.0/max(h_i_r,1e-9))
-            R_f_cool_eq_r = (Ao_row_eff/Ai_row) * R_f_cool
-            R_wall_eq_r = (R_wall_row_total) / Ao_row_eff
-            R_tot_r = R_air_r + R_f_air + R_cool_eq_r + R_f_cool_eq_r + R_wall_eq_r
-            Uo_r = 1.0/R_tot_r
-            UA_r = Uo_r * Ao_row_eff
+        st.subheader("Reynolds numbers")
+        r1,r2,r3 = st.columns(3)
+        r1.metric("Re_air_channel (Dh_fin, inlet)", f"{Re_air_channel_in:0.0f}")
+        r2.metric("Re_external inlet (depth, Veff)", f"{Re_external_in:0.0f}")
+        r3.metric("Re_external rows (min–max)", f"{Re_external_min:0.0f}–{Re_external_max:0.0f}")
+        st.caption(f"Re_fin (inlet)={Re_fin_in:0.0f}")
 
-            C_air_r  = m_dot_air*cp_a
-            C_cool_r = (m_dot_cool*cprops["cp"])/n_rows
-            Cmin_r, Cmax_r = min(C_air_r,C_cool_r), max(C_air_r,C_cool_r)
-            Cr_r = Cmin_r/max(Cmax_r,1e-9)
-            NTU_r = UA_r/max(Cmin_r,1e-9)
-            eps_r = crossflow_effectiveness_mixed_unmixed(NTU_r, Cr_r)
+        # Coolant hydraulics block
+        st.subheader("Tube-side hydraulics")
 
-            dTmax_r = max(0.0, T_cool_in_row - T_air_in_r)
-            Q_r = eps_r*Cmin_r*dTmax_r
-            T_air_out_r = T_air_in_r + Q_r/C_air_r
-            T_cool_out_r= T_cool_in_row - Q_r/C_cool_r
+        cch1,cch2,cch3,cch4 = st.columns(4)
+        cch1.metric("Tube internal area Aᵢ (mm²)", f"{A_i_section*1e6:0.2f}")
+        cch2.metric("Hydraulic diameter Dₕᵢ (mm)", f"{D_h_i*1e3:0.3f}")
+        cch3.metric("Tube-side inlet velocity vᵢ (m/s)", f"{v_i_in:0.3f}")
+        cch4.metric("Re_coolant inlet (-)", f"{Re_i_in:0.0f}")
 
-        row_records.append({
-            "row": r+1, "T_air_in_C": T_air_in_r, "T_air_out_C": T_air_out_r,
-            "T_cool_out_C": T_cool_out_r, "Q_row_kW": Q_r/1000.0,
-            "NTU_row": NTU_r, "eps_row": eps_r,
-            "h_o_row": h_o_r, "eta_f_row": eta_f_r, "Re_external_row": Re_o_r,
-            "Re_fin_row": Re_fin_r, "j_row": j_row
-        })
-        Re_external_rows.append(Re_o_r)
-        Q_rows.append(Q_r)
-        cp_rows.append(cprops["cp"])
-        T_air_in_r = T_air_out_r
+        st.subheader("Geometry & Areas")
+        g1,g2,g3,g4 = st.columns(4)
+        g1.metric("Tubes per row", f"{tubes_per_row}")
+        g2.metric("Total tubes", f"{total_tubes}")
+        g3.metric("Tube external area (m²)", f"{A_tube_ext_total:0.3f}")
+        g4.metric("Fin area (m²)", f"{A_fin_total:0.3f}")
+        g5,g6,g7 = st.columns(3)
+        g5.metric("Geometric ext. area (m²)", f"{A_ext_geom_total:0.3f}")
+        g6.metric("Effective ext. area Aₑ (m²)", f"{Ao_eff_total:0.3f}")
+        g7.metric("Dh (fin channel) (mm)", f"{Dh_air*1e3:0.2f}")
 
-    if row_model:
-        Q_W = sum(Q_rows)
-        T_air_out = row_records[-1]["T_air_out_C"] if row_records else T_air_in_C
-        cp_avg = (sum(cp_rows)/len(cp_rows)) if cp_rows else cool_in["cp"]
-        T_cool_out = T_cool_in_C - Q_W / max(m_dot_cool*cp_avg,1e-12)
-        method_used = "row-by-row (variable props)" if var_props else "row-by-row"
-        Re_external_min = float(np.min(Re_external_rows)) if Re_external_rows else Re_external_in
-        Re_external_max = float(np.max(Re_external_rows)) if Re_external_rows else Re_external_in
-    else:
-        Q_W = Q_bulk_W
-        T_air_out = T_air_out_bulk
-        T_cool_out = T_cool_out_bulk
-        method_used = "bulk NTU"
-        Re_external_min = Re_external_in
-        Re_external_max = Re_external_in
+        st.subheader("HTCs & UA")
+        t1,t2,t3,t4 = st.columns(4)
+        t1.metric("h_o (USED, inlet) (W/m²·K)", f"{h_o_in:0.0f}")
+        st.caption(f"Zukauskas: {h_o_in_zuk:0.0f} | j-mode: {h_o_in_j:0.0f} | j_inlet={j_in:.4f}")
+        if air_htc_model.startswith("Zukauskas"):
+            st.caption(f"Enhancement factor used (slider): {enh_factor:.2f}")
+        t2.metric("h_i (inlet) (W/m²·K)", f"{h_i_in:0.0f}")
+        t3.metric("Fin efficiency η_f (inlet)", f"{eta_fin_in:0.3f}")
+        t4.metric("UA (bulk, W/K)", f"{UA_bulk:0.0f}")
 
-    Q_kW = Q_W/1000.0
+        C_air  = m_dot_air*cp_air_in
+        C_cool = m_dot_cool*cool_in["cp"]
+        C_min = min(C_air,C_cool); C_max = max(C_air,C_cool); C_r = C_min/max(C_max,1e-9)
+        st.subheader("Capacity rates")
+        ccap1,ccap2,ccap3,ccap4 = st.columns(4)
+        ccap1.metric("C_air (kW/K)", f"{C_air/1000.0:0.2f}")
+        ccap2.metric("C_cool (kW/K)", f"{C_cool/1000.0:0.2f}")
+        ccap3.metric("C_min (kW/K)", f"{C_min/1000.0:0.2f}")
+        ccap4.metric("C_max (kW/K)", f"{C_max/1000.0:0.2f}")
+        st.caption(f"C_min side: {'Air' if C_air<=C_cool else 'Coolant'} | C*={C_r:.2f}")
 
-    # Energy report: use model Q for both sides to avoid confusion
-    Q_air_kW  = Q_W/1000.0
-    Q_cool_kW = Q_W/1000.0
-    Q_mismatch_kW = 0.0
+        st.subheader("Performance & energy balance")
+        eb1,eb2,eb3,eb4 = st.columns(4)
+        eb1.metric("Q (model) kW", f"{Q_kW:0.2f}")
+        eb2.metric("Q from Air m·c·ΔT (kW)", f"{Q_air_kW:0.2f}")
+        eb3.metric("Q from Coolant m·c·ΔT (kW)", f"{Q_cool_kW:0.2f}")
+        eb4.metric("Q mismatch (kW)", f"{Q_mismatch_kW:0.2f}")
+        perf1,perf2,perf3 = st.columns(3)
+        perf1.metric("Q required (kW)", f"{Q_target_kW:0.2f}")
+        perf2.metric("Thermal margin (kW)", f"{Q_kW-Q_target_kW:0.2f}")
+        perf3.metric("Model used", method_used)
+        o1,o2 = st.columns(2)
+        o1.metric("Coolant outlet (°C)", f"{T_cool_out:0.2f}")
+        o2.metric("Air outlet (°C)", f"{T_air_out:0.2f}")
 
-    # Pressure drops
-    Re_air_channel_in = rho_air_in * v_core * Dh_air / max(mu_air_in,1e-12)
-    q_dyn = 0.5 * rho_air_in * (Veff**2)
-    if dp_model == "K-based per-row":
-        K_total = (K_in + K_out + (K_row if "K_row" in locals() else 0.0)*n_rows + (K_misc if "K_misc" in locals() else 0.0)) * arr_dp_factor
-        dP_air_Pa = K_total * q_dyn
-    else:
-        if air_htc_model.startswith("Fin-correlation") and use_fin_friction:
-            f_base = f_fin_corr(Re_air_channel_in, Cf, mf)
-        else:
-            f_base = friction_factor_channel(Re_air_channel_in)
-        mult = f_mult if "f_mult" in locals() else 1.0
-        f_air = f_base * mult * arr_dp_factor
-        L_air = core_d
-        dP_fric = f_air * (L_air/max(Dh_air,1e-9)) * q_dyn * ((Veff/max(v_core,1e-9))**2)
-        dP_air_Pa = dP_fric + (K_in + K_out) * q_dyn
+        st.subheader("Pressure drops")
+        dp1,dp2,dp3 = st.columns(3)
+        dp1.metric("Air-side ΔP (Pa)", f"{dP_air_Pa:0.0f}")
+        dp2.metric("Tube-side ΔP per path (kPa)", f"{dP_coolant_Pa/1000.0:0.2f}")
+        dp3.metric("Dynamic pressure q@Veff (Pa)", f"{q_dyn:0.0f}")
 
-    f_i = friction_factor_tube(cool_in["rho"]*v_i_in*D_h_i/max(cool_in["mu"],1e-12), rel_rough)
-    L_tube = core_h
-    q_dyn_i = 0.5*cool_in["rho"]*(v_i_in**2)
-    dP_tube_Pa    = (f_i * (L_tube/max(D_h_i,1e-9)) + K_tube_in + K_tube_out) * q_dyn_i
-    dP_headers_Pa = K_headers * q_dyn_i
-    dP_coolant_Pa = dP_tube_Pa + dP_headers_Pa
-
-    # ------------ UI -------------
-    st.subheader("Velocities & FAR")
-    vcol1,vcol2,vcol3 = st.columns(3)
-    vcol1.metric("Face velocity v_face (m/s)", f"{v_face:0.2f}")
-    vcol2.metric("Fin-space velocity v_core (m/s)", f"{v_core:0.2f}")
-    vcol3.metric("Free-area ratio (FAR)", f"{FAR:0.3f}")
-    st.metric("Velocity used for Re/ΔP (m/s)", f"{Veff:.2f}")
-    st.metric("Amplification (Veff/Vref)", f"{vamp:.2f}")
-    st.caption(f"Air velocity model: {vmax_model} (cap={vmax_cap}) — ST/D={ST/max(D,1e-9):.2f}, SL/D={SL/max(D,1e-9):.2f}")
-
-    st.subheader("Reynolds numbers")
-    r1,r2,r3 = st.columns(3)
-    r1.metric("Re_air_channel (Dh_fin, inlet)", f"{Re_air_channel_in:0.0f}")
-    r2.metric("Re_external inlet (depth, Veff)", f"{Re_external_in:0.0f}")
-    r3.metric("Re_external rows (min–max)", f"{Re_external_min:0.0f}–{Re_external_max:0.0f}")
-    st.caption(f"Re_fin (inlet)={Re_fin_in:0.0f}")
-
-    # Coolant hydraulics block
-    st.subheader("Tube-side hydraulics")
-
-    cch1,cch2,cch3,cch4 = st.columns(4)
-    cch1.metric("Tube internal area Aᵢ (mm²)", f"{A_i_section*1e6:0.2f}")
-    cch2.metric("Hydraulic diameter Dₕᵢ (mm)", f"{D_h_i*1e3:0.3f}")
-    cch3.metric("Tube-side inlet velocity vᵢ (m/s)", f"{v_i_in:0.3f}")
-    cch4.metric("Re_coolant inlet (-)", f"{Re_i_in:0.0f}")
-
-    st.subheader("Geometry & Areas")
-    g1,g2,g3,g4 = st.columns(4)
-    g1.metric("Tubes per row", f"{tubes_per_row}")
-    g2.metric("Total tubes", f"{total_tubes}")
-    g3.metric("Tube external area (m²)", f"{A_tube_ext_total:0.3f}")
-    g4.metric("Fin area (m²)", f"{A_fin_total:0.3f}")
-    g5,g6,g7 = st.columns(3)
-    g5.metric("Geometric ext. area (m²)", f"{A_ext_geom_total:0.3f}")
-    g6.metric("Effective ext. area Aₑ (m²)", f"{Ao_eff_total:0.3f}")
-    g7.metric("Dh (fin channel) (mm)", f"{Dh_air*1e3:0.2f}")
-
-    st.subheader("HTCs & UA")
-    t1,t2,t3,t4 = st.columns(4)
-    t1.metric("h_o (USED, inlet) (W/m²·K)", f"{h_o_in:0.0f}")
-    st.caption(f"Zukauskas: {h_o_in_zuk:0.0f} | j-mode: {h_o_in_j:0.0f} | j_inlet={j_in:.4f}")
-    if air_htc_model.startswith("Zukauskas"):
-        st.caption(f"Enhancement factor used (slider): {enh_factor:.2f}")
-    t2.metric("h_i (inlet) (W/m²·K)", f"{h_i_in:0.0f}")
-    t3.metric("Fin efficiency η_f (inlet)", f"{eta_fin_in:0.3f}")
-    t4.metric("UA (bulk, W/K)", f"{UA_bulk:0.0f}")
-
-    C_air  = m_dot_air*cp_air_in
-    C_cool = m_dot_cool*cool_in["cp"]
-    C_min = min(C_air,C_cool); C_max = max(C_air,C_cool); C_r = C_min/max(C_max,1e-9)
-    st.subheader("Capacity rates")
-    ccap1,ccap2,ccap3,ccap4 = st.columns(4)
-    ccap1.metric("C_air (kW/K)", f"{C_air/1000.0:0.2f}")
-    ccap2.metric("C_cool (kW/K)", f"{C_cool/1000.0:0.2f}")
-    ccap3.metric("C_min (kW/K)", f"{C_min/1000.0:0.2f}")
-    ccap4.metric("C_max (kW/K)", f"{C_max/1000.0:0.2f}")
-    st.caption(f"C_min side: {'Air' if C_air<=C_cool else 'Coolant'} | C*={C_r:.2f}")
-
-    st.subheader("Performance & energy balance")
-    eb1,eb2,eb3,eb4 = st.columns(4)
-    eb1.metric("Q (model) kW", f"{Q_kW:0.2f}")
-    eb2.metric("Q from Air m·c·ΔT (kW)", f"{Q_air_kW:0.2f}")
-    eb3.metric("Q from Coolant m·c·ΔT (kW)", f"{Q_cool_kW:0.2f}")
-    eb4.metric("Q mismatch (kW)", f"{Q_mismatch_kW:0.2f}")
-    perf1,perf2,perf3 = st.columns(3)
-    perf1.metric("Q required (kW)", f"{Q_target_kW:0.2f}")
-    perf2.metric("Thermal margin (kW)", f"{Q_kW-Q_target_kW:0.2f}")
-    perf3.metric("Model used", method_used)
-    o1,o2 = st.columns(2)
-    o1.metric("Coolant outlet (°C)", f"{T_cool_out:0.2f}")
-    o2.metric("Air outlet (°C)", f"{T_air_out:0.2f}")
-
-    st.subheader("Pressure drops")
-    dp1,dp2,dp3 = st.columns(3)
-    dp1.metric("Air-side ΔP (Pa)", f"{dP_air_Pa:0.0f}")
-    dp2.metric("Tube-side ΔP per path (kPa)", f"{dP_coolant_Pa/1000.0:0.2f}")
-    dp3.metric("Dynamic pressure q@Veff (Pa)", f"{q_dyn:0.0f}")
-
-    # Charge-air ΔP warning
-    try:
-        if tube_fluid == "Charge air" and ('dP_allow_kPa' in locals()) and dP_allow_kPa > 0:
-            if (dP_coolant_Pa/1000.0) > dP_allow_kPa:
-                st.warning(f"Tube-side ΔP {dP_coolant_Pa/1000.0:.2f} kPa exceeds allowable {dP_allow_kPa:.2f} kPa.")
-    except Exception:
-        pass
-
-    if row_model:
-        df_rows = pd.DataFrame(row_records)
-        st.subheader("Row-by-row results (coolant split equally across rows)")
-        st.dataframe(df_rows, use_container_width=True)
-        st.download_button("⬇️ Download rows.csv", df_rows.to_csv(index=False).encode("utf-8"),
-                           file_name="radiator_rows.csv", mime="text/csv")
-
-    # --------- Exports (CSV/PDF) ----------
-    inputs = {
-        "timestamp": datetime.now().isoformat(timespec='seconds'),
-        "velocity_basis": velocity_basis,
-        "air_velocity_model": vmax_model, "Vmax_cap": vmax_cap,
-        "air_htc_model": air_htc_model, "apply_arr_to_j": apply_arr_to_j,
-        "Q_target_kW": Q_target_kW, "T_cool_in_C": T_cool_in_C,
-        "T_air_in_C": T_air_in_C, "RH_air_%": RH_air_pct, "P_atm_Pa": P_atm_Pa,
-        "core_height_mm": core_height_mm, "core_width_mm": core_width_mm, "core_depth_mm": core_depth_mm,
-        "n_rows": n_rows, "tube_od_width_mm": tube_od_width_mm, "tube_od_depth_mm": tube_od_depth_mm,
-        "tube_thk_mm": tube_thk_mm, "tube_pitch_mm": tube_pitch_mm, "row_pitch_mm": row_pitch_mm,
-        "arrangement": arrangement, "fin_style": fin_style, "fin_louvered": fin_louvered,
-        "fpi": fpi, "fin_thk_mm": fin_thk_mm, "tube_material": tube_material, "fin_material": fin_material,
-        "air_mode": air_mode, "Vdot_air_m3h": Vdot_air_m3h if air_mode.startswith("Vol") else None,
-        "v_face_ms_input": v_face_ms_input if air_mode.startswith("Face") else None,
-        "enh_factor": enh_factor, "dp_model": dp_model, "arr_htc_factor": arr_htc_factor,
-        "arr_dp_factor": arr_dp_factor, "K_in": K_in, "K_row": K_row if dp_model=="K-based per-row" else None,
-        "K_out": K_out, "K_misc": K_misc if dp_model=="K-based per-row" else None,
-        "f_mult": (f_mult if dp_model=="Friction-channel (Darcy)" else None),
-        "n_fans": n_fans, "fan_ring_d_mm": fan_ring_d_mm,
-        "glycol_type": glycol_type, "glycol_pct": glycol_pct, "coolant_Vdot_Lps": coolant_Vdot_Lps,
-        "rel_rough": rel_rough, "K_tube_in": K_tube_in, "K_tube_out": K_tube_out, "K_headers": K_headers,
-        "R_f_air": R_f_air, "R_f_cool": R_f_cool, "use_auto_eta": use_auto_eta,
-        "eta_fin_manual": (eta_fin_slider if not use_auto_eta else None),
-        "far_override": far_override, "far_manual_pct": far_manual_pct if far_override else None,
-        "j_params": {"Cj":Cj,"mj":mj,"aj":aj,"bj":bj,"cj":cj,"use_fin_friction":use_fin_friction,"Cf":Cf,"mf":mf},
-        "louver_pitch_mm": louver_pitch_mm, "louver_angle_deg": louver_angle_deg,
-        "row_model": row_model, "var_props": var_props, "iters_per_row": iters_per_row
-    }
-
-    outputs = {
-        "v_face_ms": v_face, "v_core_ms": v_core, "FAR_used": FAR, "FAR_computed": FAR_computed,
-        "phi_fins": phi_fins, "phi_tubes_width": phi_tubes_width, "A_free_m2": A_free,
-        "ST_over_d": ST/max(D,1e-9), "SL_over_d": SL/max(D,1e-9),
-        "Veff_ms": Veff, "Vamp_factor": vamp,
-        "Re_air_channel_inlet": Re_air_channel_in, "Re_external_inlet": Re_external_in,
-        "Re_fin_inlet": Re_fin_in, "j_inlet": j_in,
-        "A_tube_ext_total_m2": A_tube_ext_total, "A_fin_total_m2": A_fin_total,
-        "A_ext_geom_total_m2": A_ext_geom_total, "A_ext_eff_total_m2": Ao_eff_total,
-        "h_o_air_inlet_Wm2K": h_o_in, "h_o_air_inlet_Zukauskas_Wm2K": h_o_in_zuk,
-        "h_o_air_inlet_jcorr_Wm2K": h_o_in_j, "h_i_coolant_inlet_Wm2K": h_i_in,
-        "eta_fin_inlet": eta_fin_in, "UA_bulk_W_perK": UA_bulk,
-        "NTU_bulk": NTU_bulk, "eps_bulk": eps_bulk, "Q_bulk_kW": Q_bulk_W/1000.0,
-        "Q_achieved_kW": Q_kW, "Q_required_kW": Q_target_kW, "Thermal_margin_kW": Q_kW-Q_target_kW,
-        "T_cool_out_C": T_cool_out, "T_air_out_C": T_air_out, "Method": method_used,
-        "dP_air_Pa": dP_air_Pa, "dP_coolant_Pa": dP_coolant_Pa, "q_dyn_air_Pa": q_dyn,
-        "velocity_basis": velocity_basis, "air_htc_model": air_htc_model, "enhancement_used": enh_factor,
-        "v_coolant_tube_ms": v_i_in, "A_i_section_m2": A_i_section, "D_h_i_m": D_h_i, "Re_coolant_inlet": Re_i_in
-    }
-
-    # CSV buttons
-    df_inputs = pd.DataFrame(list(inputs.items()), columns=["parameter","value"])
-    df_outputs = pd.DataFrame(list(outputs.items()), columns=["parameter","value"])
-    st.download_button("⬇️ Download inputs.csv", df_inputs.to_csv(index=False).encode("utf-8"),
-                       file_name="radiator_inputs.csv", mime="text/csv")
-    st.download_button("⬇️ Download outputs.csv", df_outputs.to_csv(index=False).encode("utf-8"),
-                       file_name="radiator_outputs.csv", mime="text/csv")
-
-    # PDF report
-    def make_pdf_report(inputs_dict, outputs_dict) -> bytes:
-        buf = io.BytesIO()
-        c = canvas.Canvas(buf, pagesize=A4)
-        width, height = A4
-        x0, y = 18*mm, height-18*mm
-        lh = 6*mm
-        def line(text, bold=False):
-            nonlocal y
-            if y < 20*mm:
-                c.showPage(); y = height-20*mm
-            c.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
-            c.drawString(x0, y, str(text)); y -= lh
-
-        line("Radiator Sizing Report — Elliptical Tubes", bold=True)
-        line(f"Generated: {datetime.now().isoformat(sep=' ', timespec='seconds')}")
-        line(f"Velocity basis: {outputs_dict.get('velocity_basis','N/A')} | Air HTC model: {inputs_dict.get('air_htc_model')}")
-        line(f"Air velocity model: {inputs_dict.get('air_velocity_model')} (cap={inputs_dict.get('Vmax_cap')})")
-        line("")
-
-        line("INPUTS", bold=True)
-        for k,v in inputs_dict.items():
-            line(f"{k}: {v}")
-
-        line(""); line("VELOCITY & FAR", bold=True)
-        line(f"v_face (m/s): {outputs_dict.get('v_face_ms')} | v_core (m/s): {outputs_dict.get('v_core_ms')}")
-        line(f"FAR used: {outputs_dict.get('FAR_used')} (computed {outputs_dict.get('FAR_computed')})")
-
-        line(""); line("REYNOLDS & j", bold=True)
-        line(f"ST/d: {outputs_dict.get('ST_over_d')}  SL/d: {outputs_dict.get('SL_over_d')}")
-        line(f"Veff (m/s): {outputs_dict.get('Veff_ms')}  Amplification: {outputs_dict.get('Vamp_factor')}")
-        line(f"Re_air_channel (Dh_fin): {outputs_dict.get('Re_air_channel_inlet')}  Re_external inlet: {outputs_dict.get('Re_external_inlet')}")
-        line(f"Re_fin inlet: {outputs_dict.get('Re_fin_inlet')}  j_inlet: {outputs_dict.get('j_inlet')}")
-
-        line(""); line("TUBE-SIDE IN-TUBE", bold=True)
+        # Charge-air ΔP warning
         try:
-            ai_mm2 = outputs_dict.get('A_i_section_m2', 0.0)*1e6
-            dhi_mm = outputs_dict.get('D_h_i_m', 0.0)*1e3
+            if tube_fluid == "Charge air" and ('dP_allow_kPa' in locals()) and dP_allow_kPa > 0:
+                if (dP_coolant_Pa/1000.0) > dP_allow_kPa:
+                    st.warning(f"Tube-side ΔP {dP_coolant_Pa/1000.0:.2f} kPa exceeds allowable {dP_allow_kPa:.2f} kPa.")
         except Exception:
-            ai_mm2, dhi_mm = outputs_dict.get('A_i_section_m2'), outputs_dict.get('D_h_i_m')
-        line(f"A_i (mm²): {ai_mm2:.2f}  D_h_i (mm): {dhi_mm:.3f}")
-        line(f"v_i (m/s): {outputs_dict.get('v_coolant_tube_ms'):.3f}  Re_i inlet: {outputs_dict.get('Re_coolant_inlet')}")
+            pass
 
-        line(""); line("AREAS & HTCs", bold=True)
-        line(f"A_tube_ext_total (m²): {outputs_dict.get('A_tube_ext_total_m2')}  A_fin_total (m²): {outputs_dict.get('A_fin_total_m2')}")
-        line(f"A_ext_geom_total (m²): {outputs_dict.get('A_ext_geom_total_m2')}  A_eff (m²): {outputs_dict.get('A_ext_eff_total_m2')}")
-        line(f"h_o USED (W/m²·K): {outputs_dict.get('h_o_air_inlet_Wm2K')}")
-        line(f"h_o Zukauskas (W/m²·K): {outputs_dict.get('h_o_air_inlet_Zukauskas_Wm2K')}  h_o j-mode (W/m²·K): {outputs_dict.get('h_o_air_inlet_jcorr_Wm2K')}")
-        line(f"h_i (W/m²·K): {outputs_dict.get('h_i_coolant_inlet_Wm2K')}  η_f: {outputs_dict.get('eta_fin_inlet')}  UA (W/K): {outputs_dict.get('UA_bulk_W_perK')}")
+        if row_model:
+            df_rows = pd.DataFrame(row_records)
+            st.subheader("Row-by-row results (coolant split equally across rows)")
+            st.dataframe(df_rows, use_container_width=True)
+            st.download_button("⬇️ Download rows.csv", df_rows.to_csv(index=False).encode("utf-8"),
+                               file_name="radiator_rows.csv", mime="text/csv")
 
-        line(""); line("NTU–ε & ENERGY", bold=True)
-        line(f"NTU_bulk: {outputs_dict.get('NTU_bulk')}  ε_bulk: {outputs_dict.get('eps_bulk')}  Q_bulk (kW): {outputs_dict.get('Q_bulk_kW')}")
-        line(f"Q_achieved (kW): {outputs_dict.get('Q_achieved_kW')}  Q_required (kW): {outputs_dict.get('Q_required_kW')}  Margin (kW): {outputs_dict.get('Thermal_margin_kW')}")
-        line(f"T_cool_out (°C): {outputs_dict.get('T_cool_out_C')}  T_air_out (°C): {outputs_dict.get('T_air_out_C')}")
+        # --------- Exports (CSV/PDF) ----------
+        inputs = {
+            "timestamp": datetime.now().isoformat(timespec='seconds'),
+            "velocity_basis": velocity_basis,
+            "air_velocity_model": vmax_model, "Vmax_cap": vmax_cap,
+            "air_htc_model": air_htc_model, "apply_arr_to_j": apply_arr_to_j,
+            "Q_target_kW": Q_target_kW, "T_cool_in_C": T_cool_in_C,
+            "T_air_in_C": T_air_in_C, "RH_air_%": RH_air_pct, "P_atm_Pa": P_atm_Pa,
+            "core_height_mm": core_height_mm, "core_width_mm": core_width_mm, "core_depth_mm": core_depth_mm,
+            "n_rows": n_rows, "tube_od_width_mm": tube_od_width_mm, "tube_od_depth_mm": tube_od_depth_mm,
+            "tube_thk_mm": tube_thk_mm, "tube_pitch_mm": tube_pitch_mm, "row_pitch_mm": row_pitch_mm,
+            "arrangement": arrangement, "fin_style": fin_style, "fin_louvered": fin_louvered,
+            "fpi": fpi, "fin_thk_mm": fin_thk_mm, "tube_material": tube_material, "fin_material": fin_material,
+            "air_mode": air_mode, "Vdot_air_m3h": Vdot_air_m3h if air_mode.startswith("Vol") else None,
+            "v_face_ms_input": v_face_ms_input if air_mode.startswith("Face") else None,
+            "enh_factor": enh_factor, "dp_model": dp_model, "arr_htc_factor": arr_htc_factor,
+            "arr_dp_factor": arr_dp_factor, "K_in": K_in, "K_row": K_row if dp_model=="K-based per-row" else None,
+            "K_out": K_out, "K_misc": K_misc if dp_model=="K-based per-row" else None,
+            "f_mult": (f_mult if dp_model=="Friction-channel (Darcy)" else None),
+            "n_fans": n_fans, "fan_ring_d_mm": fan_ring_d_mm,
+            "glycol_type": glycol_type, "glycol_pct": glycol_pct, "coolant_Vdot_Lps": coolant_Vdot_Lps,
+            "rel_rough": rel_rough, "K_tube_in": K_tube_in, "K_tube_out": K_tube_out, "K_headers": K_headers,
+            "R_f_air": R_f_air, "R_f_cool": R_f_cool, "use_auto_eta": use_auto_eta,
+            "eta_fin_manual": (eta_fin_slider if not use_auto_eta else None),
+            "far_override": far_override, "far_manual_pct": far_manual_pct if far_override else None,
+            "j_params": {"Cj":Cj,"mj":mj,"aj":aj,"bj":bj,"cj":cj,"use_fin_friction":use_fin_friction,"Cf":Cf,"mf":mf},
+            "louver_pitch_mm": louver_pitch_mm, "louver_angle_deg": louver_angle_deg,
+            "row_model": row_model, "var_props": var_props, "iters_per_row": iters_per_row
+        }
 
-        line(""); line("PRESSURE DROP", bold=True)
-        line(f"Air ΔP (Pa): {outputs_dict.get('dP_air_Pa')}  |  q_dyn@Veff (Pa): {outputs_dict.get('q_dyn_air_Pa')}")
-        line(f"Tube-side ΔP per path (Pa): {outputs_dict.get('dP_coolant_Pa')}")
+        outputs = {
+            "v_face_ms": v_face, "v_core_ms": v_core, "FAR_used": FAR, "FAR_computed": FAR_computed,
+            "phi_fins": phi_fins, "phi_tubes_width": phi_tubes_width, "A_free_m2": A_free,
+            "ST_over_d": ST/max(D,1e-9), "SL_over_d": SL/max(D,1e-9),
+            "Veff_ms": Veff, "Vamp_factor": vamp,
+            "Re_air_channel_inlet": Re_air_channel_in, "Re_external_inlet": Re_external_in,
+            "Re_fin_inlet": Re_fin_in, "j_inlet": j_in,
+            "A_tube_ext_total_m2": A_tube_ext_total, "A_fin_total_m2": A_fin_total,
+            "A_ext_geom_total_m2": A_ext_geom_total, "A_ext_eff_total_m2": Ao_eff_total,
+            "h_o_air_inlet_Wm2K": h_o_in, "h_o_air_inlet_Zukauskas_Wm2K": h_o_in_zuk,
+            "h_o_air_inlet_jcorr_Wm2K": h_o_in_j, "h_i_coolant_inlet_Wm2K": h_i_in,
+            "eta_fin_inlet": eta_fin_in, "UA_bulk_W_perK": UA_bulk,
+            "NTU_bulk": NTU_bulk, "eps_bulk": eps_bulk, "Q_bulk_kW": Q_bulk_W/1000.0,
+            "Q_achieved_kW": Q_kW, "Q_required_kW": Q_target_kW, "Thermal_margin_kW": Q_kW-Q_target_kW,
+            "T_cool_out_C": T_cool_out, "T_air_out_C": T_air_out, "Method": method_used,
+            "dP_air_Pa": dP_air_Pa, "dP_coolant_Pa": dP_coolant_Pa, "q_dyn_air_Pa": q_dyn,
+            "velocity_basis": velocity_basis, "air_htc_model": air_htc_model, "enhancement_used": enh_factor,
+            "v_coolant_tube_ms": v_i_in, "A_i_section_m2": A_i_section, "D_h_i_m": D_h_i, "Re_coolant_inlet": Re_i_in
+        }
 
-        # Methods page
-        c.showPage(); y = height-18*mm
-        c.setFont("Helvetica-Bold", 12); c.drawString(18*mm, y, "Methods (summary)"); y -= 8*mm
-        c.setFont("Helvetica", 9)
-        bullets = [
-            "Geometry: Ramanujan ellipse perimeter; A_tube = P_OD*H*N_tubes.",
-            "Fin area: Plate: 2*N_fins*(W*D), N_fins = H(in)*FPI; Corrugated per user spec.",
-            "FAR (perpendicular): (1 - t_fin/p_fin) * ((pitch_w - OD_w)/pitch_w). Dh = 2*(fin-gap)*(row-gap)/(fin-gap + row-gap).",
-            "Fin efficiency: m = sqrt(2 h_o/(k_fin t_fin)), eta_f = tanh(m L)/(m L), L = 0.5*fin-gap; A_eff = A_tube + eta_f*A_fin.",
-            "Air HTC model: Zukauskas × row correction × arrangement × enhancement, or Colburn j-mode.",
-            "j-mode: j = Cj Re^{-mj} (p_f/D_h)^a (p_louv/p_f)^b (sinθ)^c; h = j ρ V c_p / Pr^{2/3}.",
-            "Coolant HTC: Gnielinski with laminar fallback.",
-            "U outside: 1/Uo = 1/h_o + Rf_air + (A_eff/A_i)*(1/h_i+Rf_i) + R_wall/A_eff; UA = Uo*A_eff.",
-            "Crossflow (coolant mixed, air unmixed): ε = (1/C*)[1-exp(-C*(1-exp(-NTU)))], NTU = UA/C_min.",
-            "Air ΔP: K-based uses q@Veff; Darcy uses channel f(Re_Dh) or fin friction if enabled.",
-            "Coolant ΔP: Haaland/Moody via friction_factor_tube + minors."
-        ]
-        for b in bullets:
-            if y < 20*mm: c.showPage(); y = height-18*mm; c.setFont("Helvetica", 9)
-            c.drawString(18*mm, y, f"• {b}"); y -= 6*mm
+        # CSV buttons
+        df_inputs = pd.DataFrame(list(inputs.items()), columns=["parameter","value"])
+        df_outputs = pd.DataFrame(list(outputs.items()), columns=["parameter","value"])
+        st.download_button("⬇️ Download inputs.csv", df_inputs.to_csv(index=False).encode("utf-8"),
+                           file_name="radiator_inputs.csv", mime="text/csv")
+        st.download_button("⬇️ Download outputs.csv", df_outputs.to_csv(index=False).encode("utf-8"),
+                           file_name="radiator_outputs.csv", mime="text/csv")
 
-        c.showPage(); c.save(); buf.seek(0); return buf.read()
+        # PDF report
+        def make_pdf_report(inputs_dict, outputs_dict) -> bytes:
+            buf = io.BytesIO()
+            c = canvas.Canvas(buf, pagesize=A4)
+            width, height = A4
+            x0, y = 18*mm, height-18*mm
+            lh = 6*mm
+            def line(text, bold=False):
+                nonlocal y
+                if y < 20*mm:
+                    c.showPage(); y = height-20*mm
+                c.setFont("Helvetica-Bold" if bold else "Helvetica", 10)
+                c.drawString(x0, y, str(text)); y -= lh
 
-    pdf_bytes = make_pdf_report(inputs, outputs)
-    st.download_button("⬇️ Download report.pdf", pdf_bytes, file_name="radiator_report.pdf", mime="application/pdf")
+            line("Radiator Sizing Report — Elliptical Tubes", bold=True)
+            line(f"Generated: {datetime.now().isoformat(sep=' ', timespec='seconds')}")
+            line(f"Velocity basis: {outputs_dict.get('velocity_basis','N/A')} | Air HTC model: {inputs_dict.get('air_htc_model')}")
+            line(f"Air velocity model: {inputs_dict.get('air_velocity_model')} (cap={inputs_dict.get('Vmax_cap')})")
+            line("")
+
+            line("INPUTS", bold=True)
+            for k,v in inputs_dict.items():
+                line(f"{k}: {v}")
+
+            line(""); line("VELOCITY & FAR", bold=True)
+            line(f"v_face (m/s): {outputs_dict.get('v_face_ms')} | v_core (m/s): {outputs_dict.get('v_core_ms')}")
+            line(f"FAR used: {outputs_dict.get('FAR_used')} (computed {outputs_dict.get('FAR_computed')})")
+
+            line(""); line("REYNOLDS & j", bold=True)
+            line(f"ST/d: {outputs_dict.get('ST_over_d')}  SL/d: {outputs_dict.get('SL_over_d')}")
+            line(f"Veff (m/s): {outputs_dict.get('Veff_ms')}  Amplification: {outputs_dict.get('Vamp_factor')}")
+            line(f"Re_air_channel (Dh_fin): {outputs_dict.get('Re_air_channel_inlet')}  Re_external inlet: {outputs_dict.get('Re_external_inlet')}")
+            line(f"Re_fin inlet: {outputs_dict.get('Re_fin_inlet')}  j_inlet: {outputs_dict.get('j_inlet')}")
+
+            line(""); line("TUBE-SIDE IN-TUBE", bold=True)
+            try:
+                ai_mm2 = outputs_dict.get('A_i_section_m2', 0.0)*1e6
+                dhi_mm = outputs_dict.get('D_h_i_m', 0.0)*1e3
+            except Exception:
+                ai_mm2, dhi_mm = outputs_dict.get('A_i_section_m2'), outputs_dict.get('D_h_i_m')
+            line(f"A_i (mm²): {ai_mm2:.2f}  D_h_i (mm): {dhi_mm:.3f}")
+            line(f"v_i (m/s): {outputs_dict.get('v_coolant_tube_ms'):.3f}  Re_i inlet: {outputs_dict.get('Re_coolant_inlet')}")
+
+            line(""); line("AREAS & HTCs", bold=True)
+            line(f"A_tube_ext_total (m²): {outputs_dict.get('A_tube_ext_total_m2')}  A_fin_total (m²): {outputs_dict.get('A_fin_total_m2')}")
+            line(f"A_ext_geom_total (m²): {outputs_dict.get('A_ext_geom_total_m2')}  A_eff (m²): {outputs_dict.get('A_ext_eff_total_m2')}")
+            line(f"h_o USED (W/m²·K): {outputs_dict.get('h_o_air_inlet_Wm2K')}")
+            line(f"h_o Zukauskas (W/m²·K): {outputs_dict.get('h_o_air_inlet_Zukauskas_Wm2K')}  h_o j-mode (W/m²·K): {outputs_dict.get('h_o_air_inlet_jcorr_Wm2K')}")
+            line(f"h_i (W/m²·K): {outputs_dict.get('h_i_coolant_inlet_Wm2K')}  η_f: {outputs_dict.get('eta_fin_inlet')}  UA (W/K): {outputs_dict.get('UA_bulk_W_perK')}")
+
+            line(""); line("NTU–ε & ENERGY", bold=True)
+            line(f"NTU_bulk: {outputs_dict.get('NTU_bulk')}  ε_bulk: {outputs_dict.get('eps_bulk')}  Q_bulk (kW): {outputs_dict.get('Q_bulk_kW')}")
+            line(f"Q_achieved (kW): {outputs_dict.get('Q_achieved_kW')}  Q_required (kW): {outputs_dict.get('Q_required_kW')}  Margin (kW): {outputs_dict.get('Thermal_margin_kW')}")
+            line(f"T_cool_out (°C): {outputs_dict.get('T_cool_out_C')}  T_air_out (°C): {outputs_dict.get('T_air_out_C')}")
+
+            line(""); line("PRESSURE DROP", bold=True)
+            line(f"Air ΔP (Pa): {outputs_dict.get('dP_air_Pa')}  |  q_dyn@Veff (Pa): {outputs_dict.get('q_dyn_air_Pa')}")
+            line(f"Tube-side ΔP per path (Pa): {outputs_dict.get('dP_coolant_Pa')}")
+
+            # Methods page
+            c.showPage(); y = height-18*mm
+            c.setFont("Helvetica-Bold", 12); c.drawString(18*mm, y, "Methods (summary)"); y -= 8*mm
+            c.setFont("Helvetica", 9)
+            bullets = [
+                "Geometry: Ramanujan ellipse perimeter; A_tube = P_OD*H*N_tubes.",
+                "Fin area: Plate: 2*N_fins*(W*D), N_fins = H(in)*FPI; Corrugated per user spec.",
+                "FAR (perpendicular): (1 - t_fin/p_fin) * ((pitch_w - OD_w)/pitch_w). Dh = 2*(fin-gap)*(row-gap)/(fin-gap + row-gap).",
+                "Fin efficiency: m = sqrt(2 h_o/(k_fin t_fin)), eta_f = tanh(m L)/(m L), L = 0.5*fin-gap; A_eff = A_tube + eta_f*A_fin.",
+                "Air HTC model: Zukauskas × row correction × arrangement × enhancement, or Colburn j-mode.",
+                "j-mode: j = Cj Re^{-mj} (p_f/D_h)^a (p_louv/p_f)^b (sinθ)^c; h = j ρ V c_p / Pr^{2/3}.",
+                "Coolant HTC: Gnielinski with laminar fallback.",
+                "U outside: 1/Uo = 1/h_o + Rf_air + (A_eff/A_i)*(1/h_i+Rf_i) + R_wall/A_eff; UA = Uo*A_eff.",
+                "Crossflow (coolant mixed, air unmixed): ε = (1/C*)[1-exp(-C*(1-exp(-NTU)))], NTU = UA/C_min.",
+                "Air ΔP: K-based uses q@Veff; Darcy uses channel f(Re_Dh) or fin friction if enabled.",
+                "Coolant ΔP: Haaland/Moody via friction_factor_tube + minors."
+            ]
+            for b in bullets:
+                if y < 20*mm: c.showPage(); y = height-18*mm; c.setFont("Helvetica", 9)
+                c.drawString(18*mm, y, f"• {b}"); y -= 6*mm
+
+            c.showPage(); c.save(); buf.seek(0); return buf.read()
+
+        pdf_bytes = make_pdf_report(inputs, outputs)
+        st.download_button("⬇️ Download report.pdf", pdf_bytes, file_name="radiator_report.pdf", mime="application/pdf")
 
 # ---------------- Methods banner (latex) ---------------
 st.markdown("---")
