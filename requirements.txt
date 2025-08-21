@@ -1,0 +1,5 @@
+streamlit
+coolprop
+numpy
+pandas
+reportlab
