@@ -57,10 +57,8 @@ def coolant_properties(fluid: str, T_C: float) -> Dict[str, float]:
     Pr = cp*mu/max(k,1e-12)
     return {"rho":rho,"cp":cp,"k":k,"mu":mu,"Pr":Pr}
 
-
-
 def charge_air_properties(T_C: float, P_Pa: float) -> Dict[str, float]:
-    """Dry (charge) air properties at (T, P). Falls back if CoolProp unavailable."""
+    """Dry (charge) air properties at (T, P). Uses CoolProp when available; falls back to typical values."""
     T_K = T_C + 273.15
     if PropsSI is not None:
         try:
@@ -69,11 +67,12 @@ def charge_air_properties(T_C: float, P_Pa: float) -> Dict[str, float]:
             k   = PropsSI('L','T',T_K,'P',P_Pa,'Air')
             mu  = PropsSI('V','T',T_K,'P',P_Pa,'Air')
         except Exception:
-            rho, cp, k, mu = 1.2, 1007.0, 0.026, 1.95e-5
+            rho, cp, k, mu = 1.2, 1007.0, 0.026, 1.85e-5
     else:
-        rho, cp, k, mu = 1.2, 1007.0, 0.026, 1.95e-5
+        rho, cp, k, mu = 1.2, 1007.0, 0.026, 1.85e-5
     Pr = cp*mu/max(k,1e-12)
-    return {"rho":rho, "cp":cp, "k":k, "mu":mu, "Pr":Pr}
+    return {"rho":rho,"cp":cp,"k":k,"mu":mu,"Pr":Pr}
+
 
 def gnielinski_h_i(Re: float, Pr: float, k: float, D_h: float) -> float:
     if Re < 2300:
@@ -293,18 +292,17 @@ with a2:
         P_tube_in_bar = st.number_input("Charge air inlet pressure (bar abs)", 1.0, 4.0, 2.0, 0.05)
         use_mass_flow = st.toggle("Enter mass flow (kg/s) instead of m³/s", value=True)
         if use_mass_flow:
-            m_dot_tube_total_input = st.number_input("Charge air mass flow (kg/s)", 0.0, 10.0, 0.5, 0.01)
+            m_dot_tube_total_input = st.number_input("Charge air mass flow (kg/s)", 0.0, 20.0, 0.5, 0.01)
             Vdot_inlet_m3s_input = None
         else:
-            Vdot_inlet_m3s_input = st.number_input("Charge air volumetric flow at inlet (m³/s)", 0.0, 5.0, 0.3, 0.01)
+            Vdot_inlet_m3s_input = st.number_input("Charge air volumetric flow at inlet (m³/s)", 0.0, 10.0, 0.3, 0.01)
             m_dot_tube_total_input = None
-        dP_allow_kPa = st.number_input("Allowable tube-side ΔP (kPa)", 0.0, 50.0, 20.0, 1.0)
+        dP_allow_kPa = st.number_input("Allowable tube-side ΔP (kPa)", 0.0, 100.0, 20.0, 1.0)
         with st.expander("Tube-side ΔP parameters"):
             rel_rough   = st.number_input("Relative roughness ε/D (tube)", 0.0, 0.01, 1e-5, 1e-5, format="%.6f")
             K_tube_in   = st.number_input("K_tube_in (header→tube)", 0.0, 10.0, 1.0, 0.1)
             K_tube_out  = st.number_input("K_tube_out (tube→header)", 0.0, 10.0, 1.0, 0.1)
             K_headers   = st.number_input("K_headers (manifold turns)", 0.0, 10.0, 1.0, 0.1)
-
 with a3:
     st.subheader("Fouling & fin efficiency")
     R_f_air  = st.number_input("Air-side fouling R_f,air (m²·K/W)", 0.0, 0.01, 0.0001, 0.0001, format="%.5f")
@@ -371,9 +369,9 @@ air_in = air_properties(T_air_in_C, RH_air, P_atm_Pa)
 rho_air_in, cp_air_in, k_air_in, mu_air_in, Pr_air_in = air_in["rho"], air_in["cp"], air_in["k"], air_in["mu"], air_in["Pr"]
 m_dot_air = rho_air_in*Vdot_air_m3s
 
-# ---- Tube-side (glycol or charge air) ----
+# Tube-side (inside tubes): Glycol or Charge air
 if 'tube_fluid' not in locals():
-    tube_fluid = "Glycol"
+    tube_fluid = "Glycol"  # backward compatibility
 
 if tube_fluid == "Glycol":
     T_tube_in_C = T_cool_in_C
@@ -385,17 +383,18 @@ if tube_fluid == "Glycol":
     m_dot_cool = cool_in["rho"]*Vdot_cool_m3s
     P_tube_in_Pa = 101325.0
 else:
-    P_tube_in_Pa = (P_tube_in_bar*1e5)
+    P_tube_in_Pa = P_tube_in_bar*1e5
     cool_in = charge_air_properties(T_tube_in_C, P_tube_in_Pa)
-    if use_mass_flow and m_dot_tube_total_input is not None:
+    if use_mass_flow and (m_dot_tube_total_input is not None):
         m_dot_cool = m_dot_tube_total_input
     else:
         rho_inlet = charge_air_properties(T_tube_in_C, P_tube_in_Pa)["rho"]
-        m_dot_cool = rho_inlet * max(Vdot_inlet_m3s_input or 0.0, 0.0)
+        V_inlet = max(Vdot_inlet_m3s_input or 0.0, 0.0)
+        m_dot_cool = rho_inlet * V_inlet
 
 m_dot_per_tube = m_dot_cool/max(total_tubes,1)
+v_i_in   = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
 D_h_i = 4.0*A_i_section/P_i
-v_i_in = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
 
     # FAR perpendicular to airflow
     phi_fins = max(0.05, 1.0 - (fin_thk/max(fin_pitch_m,1e-9)))
@@ -438,7 +437,7 @@ v_i_in = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
         h_o_in = h_o_in_zuk
 
     Re_i_in = cool_in["rho"]*v_i_in*D_h_i/max(cool_in["mu"],1e-12)
-    h_i_in  = gnielinski_h_i(Re_i_in, cool_in["Pr"], cool_in["k"], D_h_i)
+    h_i_in = gnielinski_h_i(Re_i_in, cool_in["Pr"], cool_in["k"], D_h_i)
 
     # Fin efficiency at inlet
     L_fin = max(1e-6, 0.5*fin_gap_m)
@@ -485,7 +484,7 @@ v_i_in = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
 
     for r in range(int(n_rows)):
         T_air_out_r = T_air_in_r + 1.0
-        T_cool_in_row = T_cool_in_C  # same inlet to each row (parallel split)
+        T_cool_in_row = (T_tube_in_C if tube_fluid=='Charge air' else T_cool_in_C)  # same inlet to each row (parallel split)
         T_cool_out_r = T_cool_in_row - 1.0
         for it in range(int(iters_per_row if var_props else 1)):
             aprops = air_properties(0.5*(T_air_in_r + T_air_out_r), RH_air, P_atm_Pa)
@@ -506,7 +505,6 @@ v_i_in = m_dot_per_tube/(max(cool_in["rho"],1e-12)*A_i_section)
             else:
                 eta_f_r = eta_fin_slider
             Ao_row_eff = A_tube_row + eta_f_r*A_fin_row
-
 if tube_fluid == "Glycol":
     cprops = coolant_properties(fluid, 0.5*(T_cool_in_row+T_cool_out_r))
     v_i_row = v_i_in
@@ -516,6 +514,7 @@ else:
 
 Re_i_r = cprops["rho"]*v_i_row*D_h_i/max(cprops["mu"],1e-12)
 h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
+
             R_air_r = 1.0/max(h_o_r,1e-9)
             R_cool_eq_r = (Ao_row_eff/Ai_row) * (1.0/max(h_i_r,1e-9))
             R_f_cool_eq_r = (Ao_row_eff/Ai_row) * R_f_cool
@@ -619,7 +618,7 @@ h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
     cch1.metric("Tube internal area Aᵢ (mm²)", f"{A_i_section*1e6:0.2f}")
     cch2.metric("Hydraulic diameter Dₕᵢ (mm)", f"{D_h_i*1e3:0.3f}")
     cch3.metric("Tube-side inlet velocity vᵢ (m/s)", f"{v_i_in:0.3f}")
-    cch4.metric("Re_tube-side inlet (-)", f"{Re_i_in:0.0f}")
+    cch4.metric("Re_coolant inlet (-)", f"{Re_i_in:0.0f}")
 
     st.subheader("Geometry & Areas")
     g1,g2,g3,g4 = st.columns(4)
@@ -672,6 +671,14 @@ h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
     dp1.metric("Air-side ΔP (Pa)", f"{dP_air_Pa:0.0f}")
     dp2.metric("Tube-side ΔP per path (kPa)", f"{dP_coolant_Pa/1000.0:0.2f}")
     dp3.metric("Dynamic pressure q@Veff (Pa)", f"{q_dyn:0.0f}")
+
+    # Charge-air ΔP warning
+    try:
+        if tube_fluid == "Charge air" and ('dP_allow_kPa' in locals()) and dP_allow_kPa > 0:
+            if (dP_coolant_Pa/1000.0) > dP_allow_kPa:
+                st.warning(f"Tube-side ΔP {dP_coolant_Pa/1000.0:.2f} kPa exceeds allowable {dP_allow_kPa:.2f} kPa.")
+    except Exception:
+        pass
 
     if row_model:
         df_rows = pd.DataFrame(row_records)
@@ -772,7 +779,7 @@ h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
         line(f"Re_air_channel (Dh_fin): {outputs_dict.get('Re_air_channel_inlet')}  Re_external inlet: {outputs_dict.get('Re_external_inlet')}")
         line(f"Re_fin inlet: {outputs_dict.get('Re_fin_inlet')}  j_inlet: {outputs_dict.get('j_inlet')}")
 
-        line(""); line("COOLANT IN-TUBE", bold=True)
+        line(""); line("TUBE-SIDE IN-TUBE", bold=True)
         try:
             ai_mm2 = outputs_dict.get('A_i_section_m2', 0.0)*1e6
             dhi_mm = outputs_dict.get('D_h_i_m', 0.0)*1e3
@@ -795,7 +802,7 @@ h_i_r  = gnielinski_h_i(Re_i_r, cprops["Pr"], cprops["k"], D_h_i)
 
         line(""); line("PRESSURE DROP", bold=True)
         line(f"Air ΔP (Pa): {outputs_dict.get('dP_air_Pa')}  |  q_dyn@Veff (Pa): {outputs_dict.get('q_dyn_air_Pa')}")
-        line(f"Coolant ΔP per path (Pa): {outputs_dict.get('dP_coolant_Pa')}")
+        line(f"Tube-side ΔP per path (Pa): {outputs_dict.get('dP_coolant_Pa')}")
 
         # Methods page
         c.showPage(); y = height-18*mm
